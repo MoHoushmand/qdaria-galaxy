@@ -1,0 +1,165 @@
+---
+/**
+ * * These are toggle-able code sections, to showcase code in different languages - old design
+ * Each code section is a tab, and the code is displayed in a window below
+ *
+ * This uses an Astro content collection for the data. Check out src/content/codeToggles for the data
+ */
+import { type CollectionEntry, getCollection } from "astro:content";
+
+// get all code toggle sections
+const codeToggles = await getCollection("codeToggles", ({ data }) => {
+  // filter out drafts
+  return data.draft !== true;
+});
+
+interface codeToggleData {
+  language: string;
+  order: number;
+  code: any; // return from render() function. This is the code HTML
+}
+
+// for each element in codeToggles, render the code and return the data
+const codeToggleData: codeToggleData[] = await Promise.all(
+  codeToggles.map(async (codeToggle) => {
+    const { language, order } = codeToggle.data;
+    const { Content } = await codeToggle.render();
+    return { language, order, code: Content };
+  }),
+);
+
+// sort the elements by order
+codeToggleData.sort((a, b) => a.order - b.order);
+---
+
+<section id="feature-code-toggle" class="my-24 md:my-36">
+  <div class="site-container">
+    <div class="mr-auto max-w-4xl">
+      <div class="mr-auto max-w-xl">
+        <div class="flex">
+          <p class="colored-title inline">Code for everyone</p>
+        </div>
+        <h2 class="h2 mt-8">Check out this cool code toggle section</h2>
+        <p class="description mt-4 text-pretty">
+          Showcase how you can use your tool in all sorts of different
+          languages.
+        </p>
+      </div>
+    </div>
+    <div class="code-toggle mt-10 w-full">
+      <div class="tabs flex flex-wrap justify-start gap-2">
+        {
+          codeToggleData.map((codeToggle, idx) => (
+            <button
+              id={`code toggle ${idx}`}
+              class="code-toggle__tab rounded-md border border-base-300 px-2 py-1 transition duration-300 hover:border-primary-400 dark:border-base-600/60 dark:hover:border-base-500"
+              data-tab={idx}
+              aria-expanded="false"
+              aria-haspopup="true"
+              aria-controls={`code content ${idx}`}
+            >
+              {codeToggle.language}
+            </button>
+          ))
+        }
+      </div>
+      <div
+        class="code-window relative mt-3 h-72 rounded-2xl bg-gradient-to-b from-primary-400 to-base-300/70 to-40% p-1 after:absolute after:inset-[1px] after:rounded-[calc(1rem-1px)] after:bg-base-100/30 md:p-2 dark:from-primary-500 dark:to-base-300/50 dark:after:bg-base-800/50"
+      >
+        <div
+          class="relative z-10 h-full overflow-hidden rounded-xl md:rounded-lg"
+          style="background-color:var(--astro-code-color-background)"
+        >
+          {
+            codeToggleData.map((codeToggle, idx) => (
+              <div
+                id={`code content ${idx}`}
+                class="code-toggle__content prose absolute inset-x-0 z-10 hidden h-full max-w-none opacity-0 transition-all duration-300"
+                data-tab={idx}
+                aria-labelledby={`code toggle ${idx}`}
+              >
+                {/* render the code HTML */}
+                <codeToggle.code />
+              </div>
+            ))
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  function codeToggleSetup() {
+    const tabs = document.querySelectorAll(".code-toggle__tab");
+    const contents = document.querySelectorAll(
+      ".code-toggle__content",
+    ) as NodeListOf<HTMLElement>;
+
+    if (!tabs.length || !contents.length) return;
+
+    tabs.forEach((tab) => {
+      tab.addEventListener("click", () => {
+        // if tab has class "active", return
+        if (tab.classList.contains("active")) return;
+
+        //@ts-ignore
+        const newContent = contents[parseInt(tab.getAttribute("data-tab"))];
+
+        // remove active class from currently active tab
+        tabs.forEach((t) => {
+          if (t.classList.contains("active")) {
+            // turn off currently active tab
+            t.classList.remove("active");
+            t.setAttribute("aria-expanded", "false");
+
+            // hide currently active content
+            //@ts-ignore
+            const oldContent = contents[parseInt(t.getAttribute("data-tab"))];
+            oldContent.classList.remove("code-toggle__content--fade-in");
+          }
+        });
+
+        // add active class to clicked tab
+        tab.classList.add("active");
+        tab.setAttribute("aria-expanded", "true");
+
+        // show new code content
+        newContent.classList.remove("hidden");
+        newContent.classList.add("code-toggle__content--fade-in");
+      });
+    });
+
+    // Set default active tab
+    tabs[0].classList.add("active");
+    tabs[0].setAttribute("aria-expanded", "true");
+    contents[0].classList.remove("hidden");
+    contents[0].classList.add("code-toggle__content--fade-in");
+  }
+
+  // runs on initial page load
+  codeToggleSetup();
+
+  // runs on view transitions navigation
+  document.addEventListener("astro:after-swap", codeToggleSetup);
+</script>
+
+<!-- note: some styling had to be done in src/styles/prose.scss -->
+<style lang="scss">
+  .code-toggle__content--fade-in {
+    animation: codeContentFadeInAnimation ease-out 0.5s forwards;
+  }
+
+  @keyframes codeContentFadeInAnimation {
+    0% {
+      @apply top-1 opacity-0;
+    }
+    100% {
+      @apply top-0 opacity-100;
+    }
+  }
+
+  .code-toggle__tab.active {
+    @apply border-primary-400 dark:border-base-500 dark:bg-base-800 dark:text-base-50;
+  }
+</style>

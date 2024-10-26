@@ -1,0 +1,21 @@
+---
+import { getEntryBySlug } from "astro:content";
+
+// layout
+import BlogLayout from "@layouts/BlogLayoutLeft.astro";
+
+// utils
+import { getAllPosts } from "@js/blogUtils";
+import { getLocaleFromUrl } from "@js/localeUtils";
+
+const currLocale = getLocaleFromUrl(Astro.url);
+const posts = await getAllPosts(currLocale);
+
+const post = posts[0];
+
+const { Content } = await post.render();
+---
+
+<BlogLayout post={post}>
+  <Content />
+</BlogLayout>
